@@ -1,5 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/supabase_helper.dart';
 import '../../domain/entities/user_profile.dart';
@@ -9,6 +10,7 @@ import '../models/user_profile_model.dart';
 class AuthRepositoryImpl implements AuthRepository {
   static const String _rememberMeKey = 'remember_me';
   static const String _userIdKey = 'user_id';
+  static const String _savedEmailKey = 'saved_email';
 
   @override
   Future<Either<Failure, void>> signUp({
@@ -51,6 +53,11 @@ class AuthRepositoryImpl implements AuthRepository {
       await prefs.setBool(_rememberMeKey, rememberMe);
       if (rememberMe) {
         await prefs.setString(_userIdKey, response.user!.id);
+        // Guardar correo para autocompletar (NO guardar contraseña por seguridad)
+        await prefs.setString(_savedEmailKey, email);
+      } else {
+        // Si no quiere recordar, eliminar el correo guardado
+        await prefs.remove(_savedEmailKey);
       }
 
       return const Right(null);
@@ -66,6 +73,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_rememberMeKey);
       await prefs.remove(_userIdKey);
+      // NO eliminar el correo guardado para que el usuario pueda usarlo la próxima vez
       return const Right(null);
     } catch (e) {
       return Left(AuthFailure(e.toString()));
@@ -110,8 +118,8 @@ class AuthRepositoryImpl implements AuthRepository {
       if (rememberMe) {
         final userId = prefs.getString(_userIdKey);
         if (userId != null) {
-          final session = await SupabaseHelper.client.auth.getSession();
-          return Right(session.session != null);
+          final session = SupabaseHelper.client.auth.currentSession;
+          return Right(session != null);
         }
       }
 
@@ -130,7 +138,7 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       await SupabaseHelper.client.auth.resend(
-        type: 'signup',
+        type: OtpType.signup,
         email: user.email!,
       );
 

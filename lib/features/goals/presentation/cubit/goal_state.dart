@@ -38,4 +38,13 @@ class GoalError extends GoalState {
   List<Object?> get props => [message];
 }
 
+class GoalsListLoaded extends GoalState {
+  final List<WeeklyGoal> goals;
+
+  const GoalsListLoaded(this.goals);
+
+  @override
+  List<Object?> get props => [goals];
+}
+
 

@@ -12,7 +12,21 @@ abstract class GoalRepository {
 
   Future<Either<Failure, List<WeeklyGoal>>> getWeeklyGoalsHistory();
 
+  Future<Either<Failure, List<WeeklyGoal>>> getAllGoals({
+    bool includeArchived = false,
+  });
+
   Future<Either<Failure, WeeklyGoal>> updateWeeklyGoal(WeeklyGoal goal);
+
+  Future<Either<Failure, WeeklyGoal>> startGoal(String goalId);
+
+  Future<Either<Failure, WeeklyGoal>> pauseGoal(String goalId);
+
+  Future<Either<Failure, WeeklyGoal>> completeGoal(String goalId);
+
+  Future<Either<Failure, WeeklyGoal>> archiveGoal(String goalId);
+
+  Future<Either<Failure, void>> deleteGoal(String goalId);
 
   Future<Either<Failure, int>> calculateWeeklyProgress({
     required DateTime weekStart,

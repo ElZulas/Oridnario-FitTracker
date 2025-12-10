@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/activity.dart';
+import '../../domain/repositories/activity_repository.dart';
 import '../../domain/usecases/get_activities.dart';
 import '../../domain/usecases/create_activity.dart';
 import '../../domain/usecases/update_activity.dart';
@@ -8,7 +9,6 @@ import '../../domain/usecases/delete_activity.dart';
 import '../../domain/usecases/get_activities_by_type.dart';
 import '../../domain/usecases/get_daily_minutes.dart';
 import '../../domain/usecases/get_current_streak.dart';
-import '../../../../core/usecases/usecase.dart';
 
 part 'activity_state.dart';
 
@@ -20,6 +20,7 @@ class ActivityCubit extends Cubit<ActivityState> {
   final GetActivitiesByType getActivitiesByType;
   final GetDailyMinutes getDailyMinutes;
   final GetCurrentStreak getCurrentStreak;
+  final ActivityRepository activityRepository;
 
   ActivityCubit({
     required this.getActivities,
@@ -29,6 +30,7 @@ class ActivityCubit extends Cubit<ActivityState> {
     required this.getActivitiesByType,
     required this.getDailyMinutes,
     required this.getCurrentStreak,
+    required this.activityRepository,
   }) : super(ActivityInitial());
 
   Future<void> loadActivities({DateTime? startDate, DateTime? endDate}) async {
@@ -96,6 +98,40 @@ class ActivityCubit extends Cubit<ActivityState> {
     );
   }
 
+  Future<void> archiveActivity(String activityId) async {
+    emit(ActivityLoading());
+    final result = await activityRepository.archiveActivity(activityId);
+
+    result.fold(
+      (failure) => emit(ActivityError(failure.message)),
+      (_) {
+        if (state is ActivityLoaded) {
+          final currentActivities = (state as ActivityLoaded).activities;
+          final updatedList =
+              currentActivities.where((a) => a.id != activityId).toList();
+          emit(ActivityLoaded(updatedList));
+        }
+      },
+    );
+  }
+
+  Future<void> permanentDeleteActivity(String activityId) async {
+    emit(ActivityLoading());
+    final result = await activityRepository.permanentDeleteActivity(activityId);
+
+    result.fold(
+      (failure) => emit(ActivityError(failure.message)),
+      (_) {
+        if (state is ActivityLoaded) {
+          final currentActivities = (state as ActivityLoaded).activities;
+          final updatedList =
+              currentActivities.where((a) => a.id != activityId).toList();
+          emit(ActivityLoaded(updatedList));
+        }
+      },
+    );
+  }
+
   Future<void> loadActivitiesByType({
     required DateTime startDate,
     required DateTime endDate,
@@ -127,7 +163,7 @@ class ActivityCubit extends Cubit<ActivityState> {
   }
 
   Future<void> loadCurrentStreak() async {
-    final result = await getCurrentStreak(NoParams());
+    final result = await getCurrentStreak();
 
     result.fold(
       (failure) => emit(ActivityError(failure.message)),

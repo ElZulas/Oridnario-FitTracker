@@ -98,6 +98,16 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Perfil'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/dashboard');
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -140,7 +150,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           const SizedBox(height: 16),
                           ElevatedButton(
                             onPressed: () {
-                              // Navegar a editar perfil
+                              context.go('/onboarding');
                             },
                             child: const Text('Editar Perfil'),
                           ),

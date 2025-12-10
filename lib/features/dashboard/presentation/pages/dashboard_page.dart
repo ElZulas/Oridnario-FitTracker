@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
@@ -50,12 +51,14 @@ class _DashboardPageState extends State<DashboardPage> {
       getActivitiesByType: GetActivitiesByType(activityRepo),
       getDailyMinutes: GetDailyMinutes(activityRepo),
       getCurrentStreak: GetCurrentStreak(activityRepo),
+      activityRepository: activityRepo,
     );
 
     _goalCubit = GoalCubit(
       createWeeklyGoal: CreateWeeklyGoal(goalRepo),
       getCurrentWeeklyGoal: GetCurrentWeeklyGoal(goalRepo),
       calculateWeeklyProgress: CalculateWeeklyProgress(goalRepo),
+      goalRepository: goalRepo,
     );
 
     _weatherCubit = WeatherCubit(
@@ -88,9 +91,16 @@ class _DashboardPageState extends State<DashboardPage> {
         BlocProvider.value(value: _goalCubit),
         BlocProvider.value(value: _weatherCubit),
       ],
+      child: WillPopScope(
+        onWillPop: () async {
+          // Prevenir que el usuario salga de la app desde el dashboard
+          // Si quiere salir, debe usar el botón de logout en el perfil
+          return false;
+        },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('FitTracker'),
+            automaticallyImplyLeading: false, // No mostrar botón de back en dashboard
           actions: [
             IconButton(
               icon: const Icon(Icons.person),
@@ -100,28 +110,112 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
         body: RefreshIndicator(
           onRefresh: () async {
+            HapticFeedback.lightImpact();
             _loadData();
           },
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildWeatherCard(),
-                const SizedBox(height: 16),
-                _buildSummaryCards(),
-                const SizedBox(height: 16),
-                _buildWeeklyProgress(),
-                const SizedBox(height: 16),
-                _buildQuickActions(),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 400),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 20 * (1 - value)),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _buildWeatherCard(),
+                ),
+                const SizedBox(height: 20),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 500),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 20 * (1 - value)),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _buildSummaryCards(),
+                ),
+                const SizedBox(height: 20),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 600),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 20 * (1 - value)),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _buildWeeklyProgress(),
+                ),
+                const SizedBox(height: 20),
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 700),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 20 * (1 - value)),
+                      child: Opacity(opacity: value, child: child),
+                    );
+                  },
+                  child: _buildQuickActions(),
+                ),
               ],
             ),
           ),
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => context.go('/activity/form'),
-          icon: const Icon(Icons.add),
-          label: const Text('Agregar Actividad'),
+        floatingActionButton: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade400, Colors.blue.shade600],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.4),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                context.go('/activity/form');
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.add, color: Colors.white, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'Agregar Actividad',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
         ),
       ),
     );
@@ -131,30 +225,72 @@ class _DashboardPageState extends State<DashboardPage> {
     return BlocBuilder<WeatherCubit, WeatherState>(
       builder: (context, state) {
         if (state is WeatherLoaded) {
-          return Card(
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.orange.shade100,
+                  Colors.yellow.shade50,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.orange.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(24.0),
               child: Row(
                 children: [
-                  const Icon(Icons.wb_sunny, size: 48),
-                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade200.withOpacity(0.3),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.wb_sunny,
+                      size: 48,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '${state.weather.temperature.toStringAsFixed(1)}°C',
-                          style: const TextStyle(
-                            fontSize: 24,
+                          style: TextStyle(
+                            fontSize: 32,
                             fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade900,
+                            letterSpacing: 1,
                           ),
                         ),
-                        Text(state.weather.description),
+                        const SizedBox(height: 4),
+                        Text(
+                          state.weather.description,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
                         Text(
                           state.weather.activityRecommendation,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontStyle: FontStyle.italic,
+                            color: Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -165,11 +301,73 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           );
         }
-        return const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator()),
+        if (state is WeatherError) {
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: Colors.grey.shade100,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.cloud_off,
+                      size: 48,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Clima no disponible',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          state.message.contains('API') || state.message.contains('TU_WEATHER')
+                              ? 'Configura tu API key de OpenWeatherMap'
+                              : state.message,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: Colors.grey.shade100,
           ),
+          padding: const EdgeInsets.all(24.0),
+          child: const Center(child: CircularProgressIndicator()),
         );
       },
     );
@@ -223,23 +421,60 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildSummaryCard(String title, String value, IconData icon) {
-    return Card(
+    final colors = icon == Icons.timer
+        ? [Colors.blue.shade400, Colors.blue.shade600]
+        : [Colors.purple.shade400, Colors.purple.shade600];
+    
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            colors[0].withOpacity(0.1),
+            colors[1].withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: colors[0].withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+            spreadRadius: 1,
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            Icon(icon, size: 32),
-            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors[0].withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 32, color: colors[0]),
+            ),
+            const SizedBox(height: 12),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
+              style: TextStyle(
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: colors[0],
+                letterSpacing: 0.5,
               ),
             ),
+            const SizedBox(height: 4),
             Text(
               title,
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -257,28 +492,110 @@ class _DashboardPageState extends State<DashboardPage> {
               ? (goal.actualMinutes / goal.targetMinutes).clamp(0.0, 1.0)
               : 0.0;
 
-          return Card(
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.green.shade50,
+                  Colors.green.shade100.withOpacity(0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.green.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
             child: Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Meta Semanal',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade200.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.flag,
+                          color: Colors.green.shade700,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Meta Semanal',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Progreso',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                      Text(
+                        '${(progress * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 800),
+                    tween: Tween(begin: 0.0, end: progress),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      return Container(
+                        height: 16,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.grey.shade200,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: value,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade400),
+                            minHeight: 16,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     '${goal.actualMinutes} / ${goal.targetMinutes} minutos',
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -297,34 +614,47 @@ class _DashboardPageState extends State<DashboardPage> {
         const Text(
           'Acciones Rápidas',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         Row(
           children: [
             Expanded(
               child: _buildActionButton(
                 'Calendario',
                 Icons.calendar_today,
-                () => context.go('/activities/calendar'),
+                Colors.blue,
+                () {
+                  HapticFeedback.lightImpact();
+                  context.go('/activities/calendar');
+                },
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildActionButton(
                 'Metas',
                 Icons.flag,
-                () => context.go('/goals'),
+                Colors.green,
+                () {
+                  HapticFeedback.lightImpact();
+                  context.go('/goals');
+                },
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildActionButton(
                 'Estadísticas',
                 Icons.bar_chart,
-                () => context.go('/statistics'),
+                Colors.purple,
+                () {
+                  HapticFeedback.lightImpact();
+                  context.go('/statistics');
+                },
               ),
             ),
           ],
@@ -333,19 +663,51 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              colors: [
+                color.withOpacity(0.1),
+                color.withOpacity(0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             children: [
-              Icon(icon, size: 32),
-              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 32, color: color),
+              ),
+              const SizedBox(height: 12),
               Text(
                 label,
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

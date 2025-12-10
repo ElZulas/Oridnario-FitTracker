@@ -1,10 +1,17 @@
 class AppConstants {
-  // Supabase Configuration (debe ser configurado con tus credenciales)
-  static const String supabaseUrl = 'YOUR_SUPABASE_URL';
-  static const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+  // Supabase Configuration
+  static const String supabaseUrl = 'https://hiqtcguhxcnrnspwjvag.supabase.co';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhpcXRjZ3VoeGNucm5zcHdqdmFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzNTY5MTAsImV4cCI6MjA4MDkzMjkxMH0.yj5Gm_PRAF7DZNe7STOm2ZxVGlTJhdOaLhDadXQQvQw';
   
   // Weather API Configuration
-  static const String weatherApiKey = 'YOUR_WEATHER_API_KEY';
+  // ⚠️ INSTRUCCIONES PARA CONFIGURAR LA API KEY:
+  // 1. Ve a https://openweathermap.org/api y crea una cuenta (es gratis)
+  // 2. Inicia sesión y ve a "API keys" en tu perfil
+  // 3. Copia tu API key y reemplaza 'TU_WEATHER_API_KEY_AQUI' con tu clave
+  // 4. El plan gratuito incluye 1,000 llamadas API por día
+  // 
+  // Ejemplo: static const String weatherApiKey = 'abc123def456ghi789';
+  static const String weatherApiKey = 'e421a869282dd0e7986a8ab67d284e88';
   static const String weatherBaseUrl = 'https://api.openweathermap.org/data/2.5';
   static const Duration weatherCacheDuration = Duration(minutes: 10);
   
@@ -36,5 +43,3 @@ class AppConstants {
   static const String deepLinkScheme = 'fittracker';
   static const String deepLinkActivityPath = '/activity';
 }
-
-

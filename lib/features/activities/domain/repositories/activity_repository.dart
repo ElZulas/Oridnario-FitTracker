@@ -14,6 +14,10 @@ abstract class ActivityRepository {
 
   Future<Either<Failure, void>> deleteActivity(String activityId);
 
+  Future<Either<Failure, Activity>> archiveActivity(String activityId);
+
+  Future<Either<Failure, void>> permanentDeleteActivity(String activityId);
+
   Future<Either<Failure, List<DateTime>>> getActivityDates();
 
   Future<Either<Failure, Map<String, int>>> getActivitiesByType({

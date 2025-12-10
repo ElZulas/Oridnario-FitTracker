@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../activities/data/repositories/activity_repository_impl.dart';
 import '../../../activities/domain/usecases/get_activities.dart';
@@ -37,24 +38,38 @@ class _StatisticsPageState extends State<StatisticsPage>
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ActivityCubit(
-        getActivities: GetActivities(ActivityRepositoryImpl()),
-        createActivity: CreateActivity(ActivityRepositoryImpl()),
-        updateActivity: UpdateActivity(ActivityRepositoryImpl()),
-        deleteActivity: DeleteActivity(ActivityRepositoryImpl()),
-        getActivitiesByType: GetActivitiesByType(ActivityRepositoryImpl()),
-        getDailyMinutes: GetDailyMinutes(ActivityRepositoryImpl()),
-        getCurrentStreak: GetCurrentStreak(ActivityRepositoryImpl()),
-      )..loadActivitiesByType(
+      create: (context) {
+        final repository = ActivityRepositoryImpl();
+        return ActivityCubit(
+          getActivities: GetActivities(repository),
+          createActivity: CreateActivity(repository),
+          updateActivity: UpdateActivity(repository),
+          deleteActivity: DeleteActivity(repository),
+          getActivitiesByType: GetActivitiesByType(repository),
+          getDailyMinutes: GetDailyMinutes(repository),
+          getCurrentStreak: GetCurrentStreak(repository),
+          activityRepository: repository,
+        )..loadActivitiesByType(
           startDate: DateTime.now().subtract(const Duration(days: 7)),
           endDate: DateTime.now(),
         )..loadDailyMinutes(
           startDate: DateTime.now().subtract(const Duration(days: 30)),
           endDate: DateTime.now(),
-        ),
+        );
+      },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Estadísticas'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/dashboard');
+              }
+            },
+          ),
           bottom: TabBar(
             controller: _tabController,
             tabs: const [

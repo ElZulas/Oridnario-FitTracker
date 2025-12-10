@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS activities (
   calories_burned INTEGER NOT NULL,
   activity_date TIMESTAMP WITH TIME ZONE NOT NULL,
   notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  archived BOOLEAN DEFAULT FALSE,
+  deleted BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Tabla: weekly_goals
@@ -29,8 +32,14 @@ CREATE TABLE IF NOT EXISTS weekly_goals (
   target_minutes INTEGER NOT NULL,
   achieved BOOLEAN DEFAULT FALSE,
   actual_minutes INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed')),
+  elapsed_minutes INTEGER DEFAULT 0,
+  start_time TIMESTAMP WITH TIME ZONE,
+  end_time TIMESTAMP WITH TIME ZONE,
+  archived BOOLEAN DEFAULT FALSE,
+  deleted BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, week_start)
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Índices para mejorar rendimiento

@@ -20,17 +20,20 @@ class ActivityRepositoryImpl implements ActivityRepository {
       var query = SupabaseHelper.client
           .from('activities')
           .select()
-          .eq('user_id', userId)
-          .order('activity_date', ascending: false);
+          .eq('user_id', userId);
+      
+      // Solo filtrar por deleted si la columna existe (después de migración)
+      // Por ahora comentamos esto para que funcione sin la migración
+      // .eq('deleted', false);
 
       if (startDate != null) {
-        query = query.gte('activity_date', startDate.toIso8601String());
+        query = query.filter('activity_date', 'gte', startDate.toIso8601String());
       }
       if (endDate != null) {
-        query = query.lte('activity_date', endDate.toIso8601String());
+        query = query.filter('activity_date', 'lte', endDate.toIso8601String());
       }
 
-      final response = await query;
+      final response = await query.order('activity_date', ascending: false);
       final activities = (response as List)
           .map((json) => ActivityModel.fromJson(json))
           .toList();
@@ -49,27 +52,28 @@ class ActivityRepositoryImpl implements ActivityRepository {
         return const Left(AuthFailure('Usuario no autenticado'));
       }
 
-      final activityModel = ActivityModel(
-        id: activity.id,
-        userId: userId,
-        activityType: activity.activityType,
-        durationMinutes: activity.durationMinutes,
-        distanceKm: activity.distanceKm,
-        caloriesBurned: activity.caloriesBurned,
-        activityDate: activity.activityDate,
-        notes: activity.notes,
-        createdAt: activity.createdAt,
-      );
+      // NO incluir el ID al crear - dejar que Supabase lo genere automáticamente como UUID
+      final activityData = {
+        'user_id': userId,
+        'activity_type': activity.activityType,
+        'duration_minutes': activity.durationMinutes,
+        'distance_km': activity.distanceKm,
+        'calories_burned': activity.caloriesBurned,
+        'activity_date': activity.activityDate.toIso8601String(),
+        'notes': activity.notes,
+      };
 
       final response = await SupabaseHelper.client
           .from('activities')
-          .insert(activityModel.toJson())
+          .insert(activityData)
           .select()
           .single();
 
       return Right(ActivityModel.fromJson(response));
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      // Log del error para debugging
+      print('Error al crear actividad: $e');
+      return Left(ServerFailure('Error al crear actividad: ${e.toString()}'));
     }
   }
 
@@ -109,15 +113,54 @@ class ActivityRepositoryImpl implements ActivityRepository {
 
   @override
   Future<Either<Failure, void>> deleteActivity(String activityId) async {
+    // Marcar como eliminado en lugar de borrar físicamente
+    return await archiveActivity(activityId).then((result) => result.fold(
+      (failure) => Left(failure),
+      (_) => const Right(null),
+    ));
+  }
+
+  @override
+  Future<Either<Failure, Activity>> archiveActivity(String activityId) async {
     try {
       final userId = SupabaseHelper.currentUser?.id;
       if (userId == null) {
         return const Left(AuthFailure('Usuario no autenticado'));
       }
 
+      final now = DateTime.now();
+      final response = await SupabaseHelper.client
+          .from('activities')
+          .update({
+            'archived': true,
+            'updated_at': now.toIso8601String(),
+          })
+          .eq('id', activityId)
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+      return Right(ActivityModel.fromJson(response));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> permanentDeleteActivity(String activityId) async {
+    try {
+      final userId = SupabaseHelper.currentUser?.id;
+      if (userId == null) {
+        return const Left(AuthFailure('Usuario no autenticado'));
+      }
+
+      final now = DateTime.now();
       await SupabaseHelper.client
           .from('activities')
-          .delete()
+          .update({
+            'deleted': true,
+            'updated_at': now.toIso8601String(),
+          })
           .eq('id', activityId)
           .eq('user_id', userId);
 

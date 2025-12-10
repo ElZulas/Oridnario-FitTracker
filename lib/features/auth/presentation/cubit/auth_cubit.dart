@@ -4,7 +4,6 @@ import '../../domain/entities/user_profile.dart';
 import '../../domain/usecases/sign_up.dart';
 import '../../domain/usecases/sign_in.dart';
 import '../../domain/usecases/get_current_user_profile.dart';
-import '../../../../core/usecases/usecase.dart';
 
 part 'auth_state.dart';
 
@@ -50,7 +49,7 @@ class AuthCubit extends Cubit<AuthState> {
     result.fold(
       (failure) => emit(AuthError(failure.message)),
       (_) async {
-        final profileResult = await getCurrentUserProfile(NoParams());
+        final profileResult = await getCurrentUserProfile();
         profileResult.fold(
           (failure) => emit(AuthError(failure.message)),
           (profile) => emit(AuthAuthenticated(profile)),
@@ -61,7 +60,7 @@ class AuthCubit extends Cubit<AuthState> {
 
   Future<void> checkAuthStatus() async {
     emit(AuthLoading());
-    final result = await getCurrentUserProfile(NoParams());
+    final result = await getCurrentUserProfile();
     result.fold(
       (failure) => emit(AuthUnauthenticated()),
       (profile) {
