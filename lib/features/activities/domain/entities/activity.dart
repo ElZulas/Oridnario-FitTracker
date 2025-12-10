@@ -9,6 +9,8 @@ class Activity extends Equatable {
   final int caloriesBurned;
   final DateTime activityDate;
   final String? notes;
+  final bool archived;
+  final bool deleted;
   final DateTime createdAt;
 
   const Activity({
@@ -20,6 +22,8 @@ class Activity extends Equatable {
     required this.caloriesBurned,
     required this.activityDate,
     this.notes,
+    this.archived = false,
+    this.deleted = false,
     required this.createdAt,
   });
 
@@ -33,6 +37,8 @@ class Activity extends Equatable {
         caloriesBurned,
         activityDate,
         notes,
+        archived,
+        deleted,
         createdAt,
       ];
 }

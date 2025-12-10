@@ -54,8 +54,20 @@ class _ActivitiesCalendarPageState extends State<ActivitiesCalendarPage> {
             activityRepository: repository,
           )..loadActivities();
         },
-        child: BlocBuilder<ActivityCubit, ActivityState>(
-          builder: (context, state) {
+        child: BlocListener<ActivityCubit, ActivityState>(
+          listener: (context, state) {
+            if (state is ActivityError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: ${state.message}'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          },
+          child: BlocBuilder<ActivityCubit, ActivityState>(
+            builder: (context, state) {
             if (state is ActivityLoaded) {
               _activityDates = state.activities
                   .map((a) => DateTime(
@@ -107,7 +119,8 @@ class _ActivitiesCalendarPageState extends State<ActivitiesCalendarPage> {
                   ),
               ],
             );
-          },
+            },
+          ),
         ),
       ),
     );
@@ -198,24 +211,56 @@ class _ActivitiesCalendarPageState extends State<ActivitiesCalendarPage> {
   void _showDeleteConfirmation(BuildContext context, String activityId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar Actividad'),
-        content: const Text('¿Estás seguro de que deseas eliminar permanentemente esta actividad? Esta acción no se puede deshacer.'),
+        content: const Text('¿Estás seguro de que deseas eliminar esta actividad?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancelar'),
           ),
-          TextButton(
-            onPressed: () {
-              context.read<ActivityCubit>().permanentDeleteActivity(activityId);
-              Navigator.of(context).pop();
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              
+              // Mostrar indicador de carga
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Actividad eliminada permanentemente')),
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Eliminando actividad...'),
+                    ],
+                  ),
+                  duration: Duration(seconds: 2),
+                ),
               );
+              
+              // Eliminar la actividad usando removeActivity que llama a deleteActivity
+              context.read<ActivityCubit>().removeActivity(activityId);
+              
+              // Esperar un momento para que se complete la eliminación
+              await Future.delayed(const Duration(milliseconds: 500));
+              
+              // Mostrar mensaje de éxito
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Actividad eliminada correctamente'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Eliminar Permanentemente'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Eliminar'),
           ),
         ],
       ),

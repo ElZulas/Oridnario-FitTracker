@@ -21,10 +21,6 @@ class ActivityRepositoryImpl implements ActivityRepository {
           .from('activities')
           .select()
           .eq('user_id', userId);
-      
-      // Solo filtrar por deleted si la columna existe (después de migración)
-      // Por ahora comentamos esto para que funcione sin la migración
-      // .eq('deleted', false);
 
       if (startDate != null) {
         query = query.filter('activity_date', 'gte', startDate.toIso8601String());
@@ -34,9 +30,26 @@ class ActivityRepositoryImpl implements ActivityRepository {
       }
 
       final response = await query.order('activity_date', ascending: false);
-      final activities = (response as List)
+      final allActivities = (response as List)
           .map((json) => ActivityModel.fromJson(json))
           .toList();
+
+      // Filtrar manualmente las actividades eliminadas y archivadas
+      final activities = allActivities.where((activity) {
+        // Excluir si está eliminada
+        if (activity.deleted == true) {
+          print('⏭️ Actividad ${activity.id} excluida: deleted=true');
+          return false;
+        }
+        // Excluir si está archivada
+        if (activity.archived == true) {
+          print('⏭️ Actividad ${activity.id} excluida: archived=true');
+          return false;
+        }
+        return true;
+      }).toList();
+      
+      print('📊 Actividades filtradas: ${activities.length} de ${allActivities.length}');
 
       return Right(activities);
     } catch (e) {
@@ -94,6 +107,8 @@ class ActivityRepositoryImpl implements ActivityRepository {
         caloriesBurned: activity.caloriesBurned,
         activityDate: activity.activityDate,
         notes: activity.notes,
+        archived: activity.archived,
+        deleted: activity.deleted,
         createdAt: activity.createdAt,
       );
 
@@ -113,11 +128,37 @@ class ActivityRepositoryImpl implements ActivityRepository {
 
   @override
   Future<Either<Failure, void>> deleteActivity(String activityId) async {
-    // Marcar como eliminado en lugar de borrar físicamente
-    return await archiveActivity(activityId).then((result) => result.fold(
-      (failure) => Left(failure),
-      (_) => const Right(null),
-    ));
+    try {
+      final userId = SupabaseHelper.currentUser?.id;
+      if (userId == null) {
+        return const Left(AuthFailure('Usuario no autenticado'));
+      }
+
+      final now = DateTime.now();
+      // Marcar como eliminado usando deleted: true
+      final response = await SupabaseHelper.client
+          .from('activities')
+          .update({
+            'deleted': true,
+            'updated_at': now.toIso8601String(),
+          })
+          .eq('id', activityId)
+          .eq('user_id', userId)
+          .eq('deleted', false) // Solo actualizar si no está ya eliminada
+          .select();
+
+      // Verificar que se actualizó al menos una fila
+      if ((response as List).isEmpty) {
+        print('⚠️ No se pudo eliminar la actividad. Puede que ya esté eliminada o no exista.');
+        return const Left(ServerFailure('No se pudo eliminar la actividad. Puede que ya esté eliminada o no exista.'));
+      }
+
+      print('✅ Actividad eliminada correctamente: $activityId');
+      return const Right(null);
+    } catch (e) {
+      print('❌ Error al eliminar actividad: $e');
+      return Left(ServerFailure('Error al eliminar actividad: ${e.toString()}'));
+    }
   }
 
   @override
@@ -155,18 +196,27 @@ class ActivityRepositoryImpl implements ActivityRepository {
       }
 
       final now = DateTime.now();
-      await SupabaseHelper.client
+      final response = await SupabaseHelper.client
           .from('activities')
           .update({
             'deleted': true,
             'updated_at': now.toIso8601String(),
           })
           .eq('id', activityId)
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .eq('deleted', false) // Solo actualizar si no está ya eliminada
+          .select();
 
+      // Verificar que se actualizó al menos una fila
+      if ((response as List).isEmpty) {
+        return const Left(ServerFailure('No se pudo eliminar la actividad. Puede que ya esté eliminada o no exista.'));
+      }
+
+      print('✅ Actividad eliminada permanentemente: $activityId');
       return const Right(null);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      print('❌ Error al eliminar permanentemente: $e');
+      return Left(ServerFailure('Error al eliminar actividad: ${e.toString()}'));
     }
   }
 
@@ -180,10 +230,17 @@ class ActivityRepositoryImpl implements ActivityRepository {
 
       final response = await SupabaseHelper.client
           .from('activities')
-          .select('activity_date')
+          .select('activity_date, deleted, archived')
           .eq('user_id', userId);
 
-      final dates = (response as List)
+      // Filtrar actividades eliminadas y archivadas
+      final validActivities = (response as List).where((json) {
+        final deleted = json['deleted'] as bool? ?? false;
+        final archived = json['archived'] as bool? ?? false;
+        return !deleted && !archived;
+      }).toList();
+
+      final dates = validActivities
           .map((json) => DateTime.parse(json['activity_date'] as String))
           .toSet()
           .toList();

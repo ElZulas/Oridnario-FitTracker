@@ -135,20 +135,51 @@ class GoalCubit extends Cubit<GoalState> {
   }
 
   Future<void> archiveGoal(String goalId) async {
+    // Guardar el estado actual antes de archivar
+    final currentState = state;
     emit(GoalLoading());
     final result = await goalRepository.archiveGoal(goalId);
     result.fold(
       (failure) => emit(GoalError(failure.message)),
-      (_) => loadCurrentGoal(), // Recargar para mostrar la siguiente meta
+      (_) {
+        // Si estábamos en la vista de lista, recargar la lista
+        // Si estábamos en la vista individual, recargar la meta actual
+        if (currentState is GoalsListLoaded) {
+          loadAllGoals(includeArchived: false);
+        } else {
+          loadCurrentGoal(); // Recargar para mostrar la siguiente meta
+        }
+      },
     );
   }
 
   Future<void> deleteGoal(String goalId) async {
+    print('🗑️ GoalCubit: Intentando eliminar meta: $goalId');
+    
+    // Guardar el estado actual antes de eliminar
+    final currentState = state;
     emit(GoalLoading());
+    
+    print('📞 GoalCubit: Llamando a goalRepository.deleteGoal...');
     final result = await goalRepository.deleteGoal(goalId);
+    
     result.fold(
-      (failure) => emit(GoalError(failure.message)),
-      (_) => loadCurrentGoal(), // Recargar para mostrar la siguiente meta
+      (failure) {
+        print('❌ GoalCubit: Error al eliminar: ${failure.message}');
+        emit(GoalError(failure.message));
+      },
+      (_) {
+        print('✅ GoalCubit: Meta eliminada exitosamente, recargando...');
+        // Si estábamos en la vista de lista, recargar la lista
+        // Si estábamos en la vista individual, recargar la meta actual
+        if (currentState is GoalsListLoaded) {
+          print('📋 GoalCubit: Recargando lista de metas...');
+          loadAllGoals(includeArchived: false);
+        } else {
+          print('🎯 GoalCubit: Recargando meta actual...');
+          loadCurrentGoal(); // Recargar para mostrar la siguiente meta
+        }
+      },
     );
   }
 

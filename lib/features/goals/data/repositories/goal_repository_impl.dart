@@ -204,7 +204,7 @@ class GoalRepositoryImpl implements GoalRepository {
         return const Left(AuthFailure('Usuario no autenticado'));
       }
 
-      // Intentar con filtros nuevos primero (si existen las columnas)
+      // Obtener todas las metas del usuario
       dynamic response;
       try {
         var query = SupabaseHelper.client
@@ -212,37 +212,33 @@ class GoalRepositoryImpl implements GoalRepository {
             .select()
             .eq('user_id', userId);
         
-        // Intentar filtrar por deleted y archived si existen
-        try {
-          query = query.eq('deleted', false);
-          if (!includeArchived) {
-            query = query.eq('archived', false);
-          }
-        } catch (_) {
-          // Si las columnas no existen, continuar sin filtros
-        }
-        
         response = await query.order('created_at', ascending: false);
       } catch (e) {
-        // Si falla, intentar sin filtros
-        print('Error con filtros en getAllGoals, intentando sin filtros: $e');
-        response = await SupabaseHelper.client
-            .from('weekly_goals')
-            .select()
-            .eq('user_id', userId)
-            .order('created_at', ascending: false);
+        print('Error al obtener metas: $e');
+        return Left(ServerFailure('Error al cargar metas: ${e.toString()}'));
       }
 
       final goalsList = (response as List)
           .map((json) => WeeklyGoalModel.fromJson(json))
           .toList();
 
-      // Filtrar manualmente si las columnas existen pero el filtro no funcionó
+      // Filtrar manualmente para excluir eliminadas y archivadas
       final filteredGoals = goalsList.where((goal) {
-        if (goal.deleted == true) return false;
-        if (!includeArchived && goal.archived == true) return false;
+        // Excluir si está eliminada (true o null que no sea explícitamente false)
+        if (goal.deleted == true) {
+          print('⏭️ Meta ${goal.id} excluida: deleted=true');
+          return false;
+        }
+        // Excluir archivadas si no se incluyen
+        if (!includeArchived && goal.archived == true) {
+          print('⏭️ Meta ${goal.id} excluida: archived=true');
+          return false;
+        }
+        print('✅ Meta ${goal.id} incluida: deleted=${goal.deleted}, archived=${goal.archived}');
         return true;
       }).toList();
+      
+      print('📊 Metas filtradas: ${filteredGoals.length} de ${goalsList.length}');
 
       return Right(filteredGoals);
     } catch (e) {
@@ -425,19 +421,56 @@ class GoalRepositoryImpl implements GoalRepository {
         return const Left(AuthFailure('Usuario no autenticado'));
       }
 
+      print('🗑️ Repository: Intentando eliminar meta $goalId para usuario $userId');
+
       final now = DateTime.now();
-      await SupabaseHelper.client
+      
+      // Primero verificar que la meta existe y no está eliminada
+      try {
+        final checkResponse = await SupabaseHelper.client
+            .from('weekly_goals')
+            .select('id, deleted')
+            .eq('id', goalId)
+            .eq('user_id', userId)
+            .maybeSingle();
+        
+        if (checkResponse == null) {
+          print('⚠️ Meta no encontrada: $goalId');
+          return const Left(ServerFailure('No se encontró la meta para eliminar.'));
+        }
+        
+        if (checkResponse['deleted'] == true) {
+          print('⚠️ Meta ya está eliminada: $goalId');
+          return const Left(ServerFailure('La meta ya está eliminada.'));
+        }
+      } catch (e) {
+        print('⚠️ Error al verificar meta (continuando): $e');
+        // Continuar con la eliminación aunque falle la verificación
+      }
+      
+      // Actualizar la meta como eliminada
+      final response = await SupabaseHelper.client
           .from('weekly_goals')
           .update({
             'deleted': true,
             'updated_at': now.toIso8601String(),
           })
           .eq('id', goalId)
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .select();
 
+      // Verificar que se actualizó al menos una fila
+      if ((response as List).isEmpty) {
+        print('⚠️ No se actualizó ninguna fila');
+        return const Left(ServerFailure('No se pudo eliminar la meta. Puede que ya esté eliminada o no exista.'));
+      }
+
+      print('✅ Meta eliminada correctamente en BD: $goalId');
       return const Right(null);
     } catch (e) {
-      return Left(ServerFailure(e.toString()));
+      print('❌ Error al eliminar meta: $e');
+      print('📊 Tipo de error: ${e.runtimeType}');
+      return Left(ServerFailure('Error al eliminar meta: ${e.toString()}'));
     }
   }
 

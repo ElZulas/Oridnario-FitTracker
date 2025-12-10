@@ -82,52 +82,90 @@ class ActivityCubit extends Cubit<ActivityState> {
   }
 
   Future<void> removeActivity(String activityId) async {
+    print('🗑️ Intentando eliminar actividad: $activityId');
+    
+    // Guardar el estado actual para recargar con los mismos filtros
+    final currentState = state;
+    DateTime? startDate;
+    DateTime? endDate;
+    
+    if (currentState is ActivityLoaded) {
+      // Si hay actividades cargadas, intentar obtener las fechas para recargar
+      final activities = currentState.activities;
+      if (activities.isNotEmpty) {
+        activities.sort((a, b) => a.activityDate.compareTo(b.activityDate));
+        startDate = activities.first.activityDate;
+        endDate = activities.last.activityDate;
+        print('📅 Fechas para recargar: $startDate - $endDate');
+      }
+    }
+    
     emit(ActivityLoading());
     final result = await deleteActivity(activityId);
 
     result.fold(
-      (failure) => emit(ActivityError(failure.message)),
+      (failure) {
+        print('❌ Error al eliminar: ${failure.message}');
+        emit(ActivityError(failure.message));
+      },
       (_) {
-        if (state is ActivityLoaded) {
-          final currentActivities = (state as ActivityLoaded).activities;
-          final updatedList =
-              currentActivities.where((a) => a.id != activityId).toList();
-          emit(ActivityLoaded(updatedList));
-        }
+        print('✅ Actividad eliminada exitosamente, recargando lista...');
+        // Recargar todas las actividades (sin filtros de fecha para asegurar que se vea el cambio)
+        loadActivities();
       },
     );
   }
 
   Future<void> archiveActivity(String activityId) async {
+    // Guardar el estado actual para recargar con los mismos filtros
+    final currentState = state;
+    DateTime? startDate;
+    DateTime? endDate;
+    
+    if (currentState is ActivityLoaded) {
+      final activities = currentState.activities;
+      if (activities.isNotEmpty) {
+        activities.sort((a, b) => a.activityDate.compareTo(b.activityDate));
+        startDate = activities.first.activityDate;
+        endDate = activities.last.activityDate;
+      }
+    }
+    
     emit(ActivityLoading());
     final result = await activityRepository.archiveActivity(activityId);
 
     result.fold(
       (failure) => emit(ActivityError(failure.message)),
       (_) {
-        if (state is ActivityLoaded) {
-          final currentActivities = (state as ActivityLoaded).activities;
-          final updatedList =
-              currentActivities.where((a) => a.id != activityId).toList();
-          emit(ActivityLoaded(updatedList));
-        }
+        // Recargar las actividades con los mismos filtros
+        loadActivities(startDate: startDate, endDate: endDate);
       },
     );
   }
 
   Future<void> permanentDeleteActivity(String activityId) async {
+    // Guardar el estado actual para recargar con los mismos filtros
+    final currentState = state;
+    DateTime? startDate;
+    DateTime? endDate;
+    
+    if (currentState is ActivityLoaded) {
+      final activities = currentState.activities;
+      if (activities.isNotEmpty) {
+        activities.sort((a, b) => a.activityDate.compareTo(b.activityDate));
+        startDate = activities.first.activityDate;
+        endDate = activities.last.activityDate;
+      }
+    }
+    
     emit(ActivityLoading());
     final result = await activityRepository.permanentDeleteActivity(activityId);
 
     result.fold(
       (failure) => emit(ActivityError(failure.message)),
       (_) {
-        if (state is ActivityLoaded) {
-          final currentActivities = (state as ActivityLoaded).activities;
-          final updatedList =
-              currentActivities.where((a) => a.id != activityId).toList();
-          emit(ActivityLoaded(updatedList));
-        }
+        // Recargar las actividades con los mismos filtros
+        loadActivities(startDate: startDate, endDate: endDate);
       },
     );
   }

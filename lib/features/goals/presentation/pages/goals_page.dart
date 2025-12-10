@@ -131,6 +131,8 @@ class _GoalsPageState extends State<GoalsPage> {
                 // Solo mostrar mensaje de éxito si acabamos de crear (no al cargar inicialmente)
                 // Esto lo detectamos viendo si el estado anterior era GoalLoading
               }
+            } else if (state is GoalsListLoaded) {
+              print('✅ Lista de metas cargada: ${state.goals.length} metas');
             }
           },
           child: BlocBuilder<GoalCubit, GoalState>(
@@ -877,8 +879,20 @@ class _GoalsPageState extends State<GoalsPage> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
         ),
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: MediaQuery.of(context).viewInsets.bottom > 0 ? 20 : 100,
+        ),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.8,
+          ),
+          padding: EdgeInsets.only(
+            top: 24,
+            left: 24,
+            right: 24,
+            bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             gradient: LinearGradient(
@@ -890,184 +904,186 @@ class _GoalsPageState extends State<GoalsPage> {
               end: Alignment.bottomRight,
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icono animado
-              TweenAnimationBuilder<double>(
-                duration: const Duration(milliseconds: 600),
-                tween: Tween(begin: 0.0, end: 1.0),
-                curve: Curves.elasticOut,
-                builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: child,
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.flag,
-                    size: 40,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Crear Nueva Meta',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Establece tu objetivo semanal',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _targetMinutesController,
-                keyboardType: TextInputType.number,
-                style: const TextStyle(fontSize: 18),
-                decoration: InputDecoration(
-                  labelText: 'Minutos objetivo',
-                  hintText: 'Ej: 150',
-                  prefixIcon: const Icon(Icons.timer_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.blue.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      HapticFeedback.lightImpact();
-                      _targetMinutesController.clear();
-                      Navigator.pop(dialogContext);
-                    },
-                    child: Text(
-                      'Cancelar',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icono animado
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 600),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  curve: Curves.elasticOut,
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: child,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade400, Colors.blue.shade600],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      color: Colors.blue.shade100,
+                      shape: BoxShape.circle,
                     ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () async {
-                          HapticFeedback.mediumImpact();
-                          final minutes = int.tryParse(_targetMinutesController.text);
-                          if (minutes == null || minutes <= 0) {
-                            ScaffoldMessenger.of(dialogContext).showSnackBar(
-                              SnackBar(
-                                content: const Text('Por favor ingresa un número válido de minutos'),
-                                backgroundColor: Colors.orange,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          
-                          print('🎯 Diálogo: Intentando crear meta con $minutes minutos');
-                          
-                          final now = DateTime.now();
-                          final weekStart = now.subtract(Duration(days: now.weekday - 1));
-                          
-                          print('📅 Diálogo: weekStart = $weekStart');
-                          print('👤 Diálogo: userId = ${SupabaseHelper.currentUser?.id}');
-                          
-                          _targetMinutesController.clear();
-                          Navigator.pop(dialogContext);
-                          
-                          // Crear la meta después de cerrar el diálogo
-                          print('🚀 Diálogo: Llamando a createGoal...');
-                          try {
-                            await cubit.createGoal(
-                              weekStart: weekStart,
-                              targetMinutes: minutes,
-                            );
-                            print('✅ Diálogo: createGoal completado');
-                          } catch (e) {
-                            print('❌ Diálogo: Excepción al crear meta: $e');
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 5),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            );
-                          }
-                        },
+                    child: Icon(
+                      Icons.flag,
+                      size: 40,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Crear Nueva Meta',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Establece tu objetivo semanal',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: _targetMinutesController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 18),
+                  decoration: InputDecoration(
+                    labelText: 'Minutos objetivo',
+                    hintText: 'Ej: 150',
+                    prefixIcon: const Icon(Icons.timer_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: Colors.blue.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: Colors.blue.shade600, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        _targetMinutesController.clear();
+                        Navigator.pop(dialogContext);
+                      },
+                      child: Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.add, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text(
-                                'Crear',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                        gradient: LinearGradient(
+                          colors: [Colors.blue.shade400, Colors.blue.shade600],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.blue.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () async {
+                            HapticFeedback.mediumImpact();
+                            final minutes = int.tryParse(_targetMinutesController.text);
+                            if (minutes == null || minutes <= 0) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Por favor ingresa un número válido de minutos'),
+                                  backgroundColor: Colors.orange,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              );
+                              return;
+                            }
+                            
+                            print('🎯 Diálogo: Intentando crear meta con $minutes minutos');
+                            
+                            final now = DateTime.now();
+                            final weekStart = now.subtract(Duration(days: now.weekday - 1));
+                            
+                            print('📅 Diálogo: weekStart = $weekStart');
+                            print('👤 Diálogo: userId = ${SupabaseHelper.currentUser?.id}');
+                            
+                            _targetMinutesController.clear();
+                            Navigator.pop(dialogContext);
+                            
+                            // Crear la meta después de cerrar el diálogo
+                            print('🚀 Diálogo: Llamando a createGoal...');
+                            try {
+                              await cubit.createGoal(
+                                weekStart: weekStart,
+                                targetMinutes: minutes,
+                              );
+                              print('✅ Diálogo: createGoal completado');
+                            } catch (e) {
+                              print('❌ Diálogo: Excepción al crear meta: $e');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: $e'),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 5),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Crear',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1077,18 +1093,55 @@ class _GoalsPageState extends State<GoalsPage> {
   void _showDeleteConfirmation(BuildContext context, String goalId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar Meta'),
         content: const Text('¿Estás seguro de que quieres eliminar esta meta?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              
+              // Mostrar indicador de carga
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Eliminando meta...'),
+                    ],
+                  ),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              
+              print('🗑️ UI: Intentando eliminar meta: $goalId');
+              
+              // Eliminar la meta
               context.read<GoalCubit>().deleteGoal(goalId);
-              Navigator.pop(context);
+              
+              // Esperar un momento para que se complete la eliminación
+              await Future.delayed(const Duration(milliseconds: 500));
+              
+              // Mostrar mensaje de éxito
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Meta eliminada correctamente'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Eliminar'),

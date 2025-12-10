@@ -10,6 +10,8 @@ class ActivityModel extends Activity {
     required super.caloriesBurned,
     required super.activityDate,
     super.notes,
+    super.archived,
+    super.deleted,
     required super.createdAt,
   });
 
@@ -25,6 +27,8 @@ class ActivityModel extends Activity {
       caloriesBurned: json['calories_burned'] as int,
       activityDate: DateTime.parse(json['activity_date'] as String),
       notes: json['notes'] as String?,
+      archived: json['archived'] as bool? ?? false,
+      deleted: json['deleted'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
